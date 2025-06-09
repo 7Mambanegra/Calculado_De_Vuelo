@@ -1,0 +1,214 @@
+"""
+Created on Sun Jun  8 22:21:33 2025
+
+@author: universo
+"""
+import tkinter as tk
+from tkinter import ttk, messagebox
+import math
+
+class FlightPlanningCalculator:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Calculadora planificadora de vuelo")
+        self.root.geometry("500x700")
+        self.root.configure(bg='#f0f0f0')
+        self.root.resizable(False, False)
+        
+        # Variables para almacenar los valores de entrada
+        self.entries = {}
+        self.results_text = None
+        
+        self.create_widgets()
+        
+    def create_widgets(self):
+        # Frame principal
+        main_frame = tk.Frame(self.root, bg='#f0f0f0', padx=20, pady=15)
+        main_frame.pack(fill='both', expand=True)
+        
+        # Crear sección de entrada
+        self.create_input_section(main_frame)
+        
+        # Botón de cálculo
+        calc_button = tk.Button(main_frame, text="Calcular", 
+                               command=self.calculate_flight_plan,
+                               font=('Arial', 10), 
+                               bg='#e0e0e0', 
+                               relief='raised',
+                               padx=20, pady=5,
+                               cursor='hand2')
+        calc_button.pack(pady=15)
+        
+        # Separador
+        separator = tk.Frame(main_frame, height=2, bg='#cccccc')
+        separator.pack(fill='x', pady=10)
+        
+        # Sección de resultados
+        self.create_results_section(main_frame)
+        
+    def create_input_section(self, parent):
+        # Lista de parámetros con sus labels
+        parameters = [
+            ("Focal (mm):", "focal"),
+            ("Ancho imagen (px):", "ancho_imagen"),
+            ("Alto imagen (px):", "alto_imagen"),
+            ("Ancho sensor (mm):", "ancho_sensor"),
+            ("Alto sensor (mm):", "alto_sensor"),
+            ("RSI (AS/AI):", "rsi"),
+            ("Altura de vuelo (m):", "altura_vuelo"),
+            ("Solape longitudinal (%):", "solape_longitudinal"),
+            ("Solape transversal (%):", "solape_transversal"),
+            ("Largo de parcela (m):", "largo_parcela"),
+            ("Ancho de parcela (m):", "ancho_parcela"),
+            ("Velocidad de vuelo (m/s):", "velocidad")
+        ]
+        
+        # Crear los campos de entrada
+        for i, (label_text, key) in enumerate(parameters):
+            # Frame para cada fila
+            row_frame = tk.Frame(parent, bg='#f0f0f0')
+            row_frame.pack(fill='x', pady=2)
+            
+             
+            label = tk.Label(row_frame, text=label_text, 
+                           font=('Arial', 9), bg='#f0f0f0', 
+                           anchor='e', width=22)
+            label.pack(side='left')
+            
+            
+            entry = tk.Entry(row_frame, font=('Arial', 9), width=15, 
+                           relief='solid', bd=1)
+            entry.pack(side='right', padx=(10, 0))
+            self.entries[key] = entry
+    
+    def create_results_section(self, parent):
+        # Título de resultados
+        results_title = tk.Label(parent, text="Planificación del Vuelo\nVariables de Vuelo Obtenidas", 
+                                font=('Arial', 10), bg='#f0f0f0', 
+                                justify='left', anchor='w')
+        results_title.pack(anchor='w', pady=(10, 15))
+        
+        # Frame para el texto de resultados
+        results_frame = tk.Frame(parent, bg='#f0f0f0')
+        results_frame.pack(fill='both', expand=True, anchor='w')
+        
+        # Text widget para mostrar resultados
+        self.results_text = tk.Text(results_frame, 
+                                   font=('Arial', 9), 
+                                   bg='#f0f0f0', 
+                                   relief='flat',
+                                   wrap='word',
+                                   height=15,
+                                   width=60,
+                                   state='disabled',
+                                   cursor='arrow')
+        self.results_text.pack(fill='both', expand=True)
+    
+    def calculate_flight_plan(self):
+        try:
+            # Obtener valores de entrada
+            focal = float(self.entries["focal"].get())
+            ancho_imagen = float(self.entries["ancho_imagen"].get())
+            alto_imagen = float(self.entries["alto_imagen"].get())
+            ancho_sensor = float(self.entries["ancho_sensor"].get())
+            alto_sensor = float(self.entries["alto_sensor"].get())
+            rsi = float(self.entries["rsi"].get())
+            altura_vuelo = float(self.entries["altura_vuelo"].get())
+            solape_long = float(self.entries["solape_longitudinal"].get())
+            solape_trans = float(self.entries["solape_transversal"].get())
+            largo_parcela = float(self.entries["largo_parcela"].get())
+            ancho_parcela = float(self.entries["ancho_parcela"].get())
+            velocidad = float(self.entries["velocidad"].get())
+            
+            # Cálculos principales
+            gsd = (ancho_sensor * altura_vuelo * 100) / (ancho_imagen * focal)  
+            # Escala de vuelo
+            escala_vuelo = int((altura_vuelo * 1000) / focal)
+            
+            # Ancho y alto de imagen sobre terreno
+            ancho_terreno = (ancho_sensor * altura_vuelo * 1000) / (focal * ancho_imagen)   
+            alto_terreno = (alto_sensor * altura_vuelo * 1000) / (focal * alto_imagen)   
+            
+            # Base aérea distancia entre centros de fotografías consecutivas
+            base_aerea = ancho_terreno * (1 - solape_long/100)
+            
+            # Distancia entre pasadas
+            distancia_pasadas = alto_terreno * (1 - solape_trans/100)
+            
+            # Tiempo entre fotos
+            tiempo_fotos = base_aerea / velocidad
+            
+            # Número de pasadas
+            num_pasadas = math.ceil(largo_parcela / distancia_pasadas)
+            
+            # Número de fotos por pasada
+            fotos_por_pasada = math.ceil(ancho_parcela / base_aerea) + 1
+            
+            # Número total de fotos
+            total_fotos = num_pasadas * fotos_por_pasada
+            
+            # Distancia total de vuelo
+            distancia_vuelo = num_pasadas * ancho_parcela
+            
+            # Duración del vuelo
+            duracion_vuelo = distancia_vuelo / velocidad / 60  # minutos
+            
+            # Preparar texto de resultados
+            results_text = f"""GSD (cm/pixel): {gsd:.2f}
+Escala de Vuelo: {escala_vuelo:,}
+Ancho de Imagen sobre terreno (m): {ancho_terreno:.2f}
+Alto de Imagen sobre terreno (m): {alto_terreno:.2f}
+Base Aérea (m): {base_aerea:.2f}
+Distancia entre Pasadas (m): {distancia_pasadas:.2f}
+Velocidad de Vuelo (m/s): {velocidad:.1f}
+Tiempo entre fotos (s): {tiempo_fotos:.2f}
+No. de pasadas: {num_pasadas}
+No. de fotos por pasada: {fotos_por_pasada}
+No. de fotos por vuelo: {total_fotos}
+Distancia de vuelo (m): {distancia_vuelo:.2f}
+Duración del vuelo (min): {duracion_vuelo:.2f}"""
+            
+            # Mostrar resultados en el Texto
+            self.results_text.config(state='normal')
+            self.results_text.delete(1.0, tk.END)
+            self.results_text.insert(1.0, results_text)
+            self.results_text.config(state='disabled')
+            
+        except ValueError as e:
+            messagebox.showerror("Error", "Por favor, ingrese valores numéricos válidos en todos los campos")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error en el cálculo: {str(e)}")
+    
+    def load_default_values(self):
+        """Cargar valores por defecto basados en la imagen"""
+        defaults = {
+            "focal": "3.61",
+            "ancho_imagen": "4000",
+            "alto_imagen": "3000",
+            "ancho_sensor": "6.3175",
+            "alto_sensor": "4.7381",
+            "rsi": "0.00158",
+            "altura_vuelo": "120",
+            "solape_longitudinal": "80",
+            "solape_transversal": "70",
+            "largo_parcela": "700",
+            "ancho_parcela": "250",
+            "velocidad": "8"
+        }
+        
+        for key, value in defaults.items():
+            if key in self.entries:
+                self.entries[key].delete(0, tk.END)
+                self.entries[key].insert(0, value)
+
+def main():
+    root = tk.Tk()
+    app = FlightPlanningCalculator(root)
+    
+    # Cargar valores por defecto
+    app.load_default_values()
+    
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
